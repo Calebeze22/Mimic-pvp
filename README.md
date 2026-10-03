@@ -29,6 +29,24 @@ After each round the arena prints the winner, the bot's hits, crits and accuracy
 
 The server listens on localhost only and runs in offline mode, so the bot can join without a Microsoft account. `npm run arena:setup -- --lan` opens it to your LAN instead; don't expose it to the internet.
 
+## Real-client mode: the bot plays a real Minecraft window
+
+Here the bot isn't a fake client at all. It plays a normal Minecraft window on a Windows PC, logged into its own account, and presses the keys and moves the mouse through Windows input (`SendInput`), just like a keyboard and mouse would. The game does all the movement, aiming and hitting, so everything the server sees comes from a real client.
+
+To know where people are, a spectator connection (`MimicEyes`) watches the arena from above. Nothing in the game is modded.
+
+```bash
+npm run arena:setup -- --lan                        # lets your other computer join
+npm run arena:play -- --owner YourName --client     # bot = whoever else joins first (or --client TheirName)
+```
+
+1. On the Windows PC, start Minecraft 26.1.x with your second account, join `localhost`, click into the window and press **F8**. That hands this one window to the bot; it never touches any other window. F8 again pauses it, and switching to another window lets go of every key.
+2. On your other computer, join `<the PC's address>:25565` as `YourName` and type `!duel`.
+
+It reads the keys and mouse sensitivity from that game's own `options.txt`. Use Hold (not Toggle) for sprint and sneak, keep Raw Input on, and turn off Pause on Lost Focus (F3+P).
+
+Before each round the arena teleports the bot facing a known direction, so the bot knows exactly where its camera points and then counts every mouse step it sends from there. If the game ever drops mouse input (a menu was open), it re-syncs from the server's view of its head.
+
 ## Run it on another server
 
 ```bash
@@ -100,6 +118,7 @@ src/human/keys.js       key timing, sprint rules, player_input packet
 src/combat/brain.js     targeting, movement, crits, sprint hits, spacing, duels
 src/combat/items.js     weapon cooldowns and damage, armor ranking
 src/combat/geometry.js  hitboxes, ray tests, angles
+src/body/               real-client mode: Windows input, options.txt keys, the stand-in "bot"
 arena/setup.js          downloads Paper + Grim, writes server config
 arena/run.js            runs server + bot, !duel rounds, Grim flag report
 arena/rcon.js           RCON client

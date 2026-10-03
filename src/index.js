@@ -36,6 +36,38 @@ function createMimic (overrides = {}) {
   return { bot, brain, cfg }
 }
 
+// Real-client mode: the bot plays in a normal Minecraft window on this PC
+// (logged in as `name`) by pressing keys and moving the mouse. A spectator
+// connection (`eyesName`) watches the server so the bot knows where people
+// are; the game itself does all movement, aiming and hitting.
+function createBody (overrides = {}, { name, eyesName = 'MimicEyes', mcDir } = {}) {
+  const { Body } = require('./body/body')
+  const { readOptions } = require('./body/options')
+  const { Rand } = require('./util/rand')
+  const opts = readOptions(mcDir)
+  if (!opts.found) console.log(`[${name}] no options.txt at ${opts.file}; assuming default keys and 50% sensitivity`)
+  for (const p of opts.problems) console.log(`[${name}] Minecraft setting to fix: ${p}`)
+  require('./body/win32').timeBeginPeriod(1)
+
+  const cfg = buildConfig(overrides)
+  cfg.aim.sensitivity = opts.sensitivity // must match the game, or the mouse maths is off
+  cfg.loadout.autoArmor = false // can't see its own inventory
+  const eyes = mineflayer.createBot({ ...cfg.connection, username: eyesName, hideErrors: false, physicsEnabled: false })
+  const body = new Body(eyes, name, opts, new Rand(cfg.seed))
+  const brain = new Brain(body, cfg)
+  body.attachAim(brain)
+  eyes.once('spawn', () => {
+    eyes.physicsEnabled = false
+    body.start()
+    brain.start()
+    brain.log(`watching as ${eyesName} (${cfg.profile} profile, sensitivity ${opts.sensitivity}); put the bot's Minecraft window in front and press F8 to hand it the keyboard and mouse (F8 again pauses)`)
+  })
+  eyes.on('kicked', r => brain.log('eyes kicked', typeof r === 'string' ? r : JSON.stringify(r)))
+  eyes.on('error', e => brain.log('eyes error', e.message))
+  eyes.on('end', () => body.stop())
+  return { bot: eyes, body, brain, cfg }
+}
+
 if (require.main === module) {
   const args = parseArgs(process.argv.slice(2))
   let overrides = {}
@@ -47,8 +79,10 @@ if (require.main === module) {
   if (args.profile) overrides.profile = args.profile
   if (args.owner) overrides.targeting = { ...(overrides.targeting || {}), owner: args.owner }
   if (args.target) overrides.targeting = { ...(overrides.targeting || {}), auto: false }
-  const { brain } = createMimic(overrides)
+  const { brain } = args.client
+    ? createBody(overrides, { name: args.client, eyesName: args.eyes, mcDir: args['mc-dir'] })
+    : createMimic(overrides)
   if (args.target) brain.manualTarget = args.target
 }
 
-module.exports = { createMimic }
+module.exports = { createMimic, createBody }

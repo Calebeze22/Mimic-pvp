@@ -2,7 +2,7 @@
 'use strict'
 
 // One-time arena setup on your own computer:
-//   node arena/setup.js [--mc 26.1] [--lan]
+//   node arena/setup.js [--mc 26.1.2] [--lan]
 // Downloads Paper and the Grim anticheat, writes server.properties with RCON
 // enabled, and asks you to accept the Minecraft EULA.
 
@@ -13,7 +13,7 @@ const readline = require('readline')
 const { execSync } = require('child_process')
 
 const args = Object.fromEntries(process.argv.slice(2).map((a, i, all) => a.startsWith('--') ? [a.slice(2), all[i + 1] && !all[i + 1].startsWith('--') ? all[i + 1] : true] : null).filter(Boolean))
-const MC = String(args.mc || '26.1')
+const MC = String(args.mc || '26.1.2') // Paper has no plain "26.1" build
 const DIR = path.join(__dirname, 'server')
 const UA = { 'User-Agent': 'mimic-pvp-arena/0.1 (https://github.com/Calebeze22/mimic-pvp)' }
 

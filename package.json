@@ -24,5 +24,8 @@
   "devDependencies": {
     "flying-squid": "^1.12.0"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "optionalDependencies": {
+    "koffi": "^3.3.2"
+  }
 }
