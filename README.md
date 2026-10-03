@@ -52,7 +52,7 @@ Then join as `YourName` and type `!duel`.
 
 On Windows, and on Linux under Hyprland or Sway, the bot only sends input while that exact window is in front, and lets go of every key when you switch away. On other Linux desktops it can't ask which window is in front, so F8 is the only switch: press it before you leave the game.
 
-It reads the keys and mouse sensitivity from that game's own `options.txt` (its `--gameDir`). Use Hold (not Toggle) for sprint and sneak, keep Raw Input on, and turn off Pause on Lost Focus (F3+P).
+It reads the keys and mouse sensitivity from that game's own `options.txt` (its `--gameDir`, or for Prism Launcher the instance's `.minecraft` folder). Use Hold (not Toggle) for sprint and sneak, keep Raw Input on, and turn off Pause on Lost Focus (F3+P).
 
 Before each round the arena teleports the bot facing a known direction, so it knows exactly where its camera points and then counts every mouse step it sends. If the game ever drops mouse input (a menu was open), it re-syncs from the server's view of its head.
 

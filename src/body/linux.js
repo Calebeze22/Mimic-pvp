@@ -69,7 +69,7 @@ function minecraftPids () {
     if (!/^\d+$/.test(d)) continue
     try {
       const cmd = fs.readFileSync(`/proc/${d}/cmdline`, 'utf8')
-      if (/java/.test(cmd) && /net\.minecraft|--gameDir|minecraft/i.test(cmd)) out.push(Number(d))
+      if (/java/.test(cmd) && /net\.minecraft|--gameDir|minecraft|prismlauncher|multimc/i.test(cmd)) out.push(Number(d))
     } catch (_) {}
   }
   return out
@@ -100,8 +100,11 @@ module.exports = {
     try {
       const args = fs.readFileSync(`/proc/${pid}/cmdline`, 'utf8').split('\0')
       const i = args.indexOf('--gameDir')
-      return i >= 0 ? args[i + 1] : null
-    } catch (_) { return null }
+      if (i >= 0) return args[i + 1]
+    } catch (_) {}
+    // Prism Launcher passes its arguments privately and starts the game in
+    // the instance's .minecraft folder, so that folder is the game dir.
+    try { return fs.readlinkSync(`/proc/${pid}/cwd`) } catch (_) { return null }
   },
   defaultMcDir: () => path.join(require('os').homedir(), '.minecraft'),
   stop () { if (helper) helper.kill() }
