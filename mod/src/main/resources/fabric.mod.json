@@ -1,0 +1,12 @@
+{
+	"schemaVersion": 1,
+	"id": "mimic-pvp",
+	"version": "${version}",
+	"name": "Mimic PvP",
+	"description": "A sword PvP bot that plays through the game's own keys and mouse, like a person.",
+	"license": "MIT",
+	"environment": "client",
+	"entrypoints": { "client": ["mimic.MimicClient"] },
+	"mixins": ["mimic.mixins.json"],
+	"depends": { "fabricloader": ">=0.19", "minecraft": "~26.1", "fabric-api": "*" }
+}

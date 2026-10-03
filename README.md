@@ -29,53 +29,35 @@ After each round the arena prints the winner, the bot's hits, crits and accuracy
 
 The server listens on localhost only and runs in offline mode, so the bot can join without a Microsoft account. `npm run arena:setup -- --lan` opens it to your LAN instead; don't expose it to the internet.
 
-## Real-client mode: the bot plays a real Minecraft window
+## Real-client mode: the Mimic mod
 
-Here the bot isn't a fake client at all. It plays a normal Minecraft window, logged into its own account, by pressing keys and moving and clicking the mouse through the OS's input layer: `SendInput` on Windows, a virtual keyboard and mouse (uinput) on Linux, which works under Wayland and X11. The game does all the movement, aiming and hitting, so everything the server sees comes from a real client. Nothing in the game is modded.
+`dist/mimic-pvp-0.1.0+mc26.1.2.jar` is a Fabric client mod for Minecraft 26.1.x. Put it in a client's `mods` folder, next to Fabric API, and the bot plays that client the way a person does:
 
-To know where people are, the bot also connects a spectator (`MimicEyes`) that watches the arena from above. The arena gives it orders through that connection (teleport sync, start and end of rounds).
+- **Keys:** it presses your bound keys (W/A/S/D, jump, sprint, hotbar) through the same calls the game makes when a real key goes down or up, each a human motor delay after it decides.
+- **Mouse:** it adds whole mouse counts to the movement the game collected from the real mouse, so the game turns the camera with your own sensitivity.
+- **Clicks:** it presses the attack button and the game decides whether that hits, from the crosshair, reach and cooldown.
+- **What it reads:** what the client already knows: where players are, how they move, when they swing, its own health, cooldown and inventory. It uses that to decide.
+- **What it never does:** change its own player. No reach, velocity, rotation or sprint set by code, and no packets. Vanilla does every hit, sprint reset and step, so the server sees an ordinary client.
 
-**Server computer** (runs the arena):
+**F8** turns it on and off. It only plays while its window is in front with no menu open.
+
+### Arena
 
 ```bash
-npm run arena:setup -- --lan                      # lets other computers on your network join
+npm run arena:setup -- --lan                      # if the bot's client is on another computer
 npm run arena:play -- --owner YourName --client   # the bot is whoever else joins first (or --client TheirName)
 ```
 
-**Bot computer** (can be the same one, or another, e.g. a laptop):
+1. Start the bot's client (Fabric 26.1.x + Fabric API + the Mimic jar) on your second account and join the arena. Press F8 in it.
+2. Join as `YourName` and type `!duel` (or `!duel good` / `!duel casual`).
 
-1. Start Minecraft 26.1.x with your second account and join the arena.
-2. Start the bot: `node src/index.js --client --host <server address> --owner YourName [--profile pro]`.
-3. Click into the bot's Minecraft window and press **F8**. That hands that one window to the bot. F8 again pauses it.
+The arena steers the mod with system messages starting `mimic:` (`duel <name> [profile]`, `end`), which the mod hides from chat. At the end of a round the bot posts its hit stats in chat.
 
-Then join as `YourName` and type `!duel`.
-
-On Windows, and on Linux under Hyprland or Sway, the bot only sends input while that exact window is in front, and lets go of every key when you switch away. On other Linux desktops it can't ask which window is in front, so F8 is the only switch: press it before you leave the game.
-
-It reads the keys and mouse sensitivity from that game's own `options.txt` (its `--gameDir`, or for Prism Launcher the instance's `.minecraft` folder). Use Hold (not Toggle) for sprint and sneak, keep Raw Input on, and turn off Pause on Lost Focus (F3+P).
-
-Before each round the arena teleports the bot facing a known direction, so it knows exactly where its camera points and then counts every mouse step it sends. If the game ever drops mouse input (a menu was open), it re-syncs from the server's view of its head.
-
-### Laptop setup (Arch Linux)
+### Building the mod
 
 ```bash
-sudo pacman -S --needed nodejs npm git python-evdev
-echo 'KERNEL=="uinput", GROUP="input", MODE="0660", OPTIONS+="static_node=uinput"' | sudo tee /etc/udev/rules.d/99-uinput.rules
-echo uinput | sudo tee /etc/modules-load.d/uinput.conf
-sudo usermod -aG input $USER          # then log out and back in
-sudo modprobe uinput && sudo udevadm control --reload && sudo udevadm trigger
-git clone -b real-client https://github.com/Calebeze22/mimic-pvp && cd mimic-pvp && npm install
-```
-
-Being in the `input` group lets your user read every keyboard (that's how the bot sees F8). Remove yourself from it when you're done with the bot.
-
-Pointer acceleration must not touch the bot's mouse. On Hyprland, add this to `hyprland.conf`:
-
-```
-device {
-    name = mimic-virtual-mouse
-    accel_profile = flat
-}
+cd mod
+./gradlew build      # needs Java 25; the jar lands in mod/build/libs
 ```
 
 ## Run it on another server
@@ -149,7 +131,7 @@ src/human/keys.js       key timing, sprint rules, player_input packet
 src/combat/brain.js     targeting, movement, crits, sprint hits, spacing, duels
 src/combat/items.js     weapon cooldowns and damage, armor ranking
 src/combat/geometry.js  hitboxes, ray tests, angles
-src/body/               real-client mode: Windows/Linux input, options.txt keys, the stand-in "bot"
+mod/                    the Mimic Fabric mod (Java): plays a real client through its keys and mouse
 arena/setup.js          downloads Paper + Grim, writes server config
 arena/run.js            runs server + bot, !duel rounds, Grim flag report
 arena/rcon.js           RCON client
