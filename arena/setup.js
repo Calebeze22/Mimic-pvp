@@ -29,14 +29,29 @@ async function download (url, dest) {
   fs.writeFileSync(dest, Buffer.from(await r.arrayBuffer()))
 }
 
+async function paperVersion () {
+  const project = await json('https://fill.papermc.io/v3/projects/paper')
+  const all = []
+  const walk = v => { if (typeof v === 'string') all.push(v); else if (v && typeof v === 'object') Object.values(v).forEach(walk) }
+  walk(project.versions)
+  const parts = v => v.split('.').map(Number)
+  const newer = (a, b) => { const x = parts(a); const y = parts(b); for (let i = 0; i < Math.max(x.length, y.length); i++) { if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) - (y[i] || 0) } return 0 }
+  const match = [...new Set(all)].filter(v => /^[\d.]+$/.test(v) && (v === MC || v.startsWith(MC + '.'))).sort(newer)
+  if (!match.length) throw new Error(`Paper has no ${MC}.x release listed`)
+  return match[match.length - 1]
+}
+
 async function getPaper () {
   const dest = path.join(DIR, 'paper.jar')
   if (fs.existsSync(dest)) return console.log('paper.jar already there, skipping')
-  // Paper's v3 download API. Picks the newest build for the version.
-  const build = await json(`https://fill.papermc.io/v3/projects/paper/versions/${MC}/builds/latest`)
+  // Paper's v3 download API. "26.1" isn't a Paper version by itself (they
+  // publish 26.1.1, 26.1.2, ...), so pick the newest patch of the line; all
+  // 26.1.x share the bot's protocol.
+  const version = await paperVersion()
+  const build = await json(`https://fill.papermc.io/v3/projects/paper/versions/${version}/builds/latest`)
   const dl = build.downloads && build.downloads['server:default']
   if (!dl) throw new Error(`no Paper build listed for ${MC}`)
-  console.log(`downloading Paper ${MC} build ${build.id} (${build.channel})...`)
+  console.log(`downloading Paper ${version} build ${build.id} (${build.channel})...`)
   await download(dl.url, dest)
   const sha = crypto.createHash('sha256').update(fs.readFileSync(dest)).digest('hex')
   if (dl.checksums && dl.checksums.sha256 && dl.checksums.sha256 !== sha) throw new Error('Paper download checksum mismatch')
@@ -113,7 +128,7 @@ function checkJava () {
 async function main () {
   fs.mkdirSync(DIR, { recursive: true })
   checkJava()
-  await getPaper().catch(e => console.log(`Could not download Paper automatically (${e.message}).\nDownload Paper ${MC} from https://papermc.io/downloads/paper and save it as ${path.join(DIR, 'paper.jar')}`))
+  await getPaper().catch(e => console.log(`Could not download Paper automatically (${e.message}).\nDownload the newest Paper ${MC}.x from https://papermc.io/downloads/paper and save it as ${path.join(DIR, 'paper.jar')}`))
   await getGrim().catch(e => console.log(`Could not download Grim automatically (${e.message}).\nDownload it from https://modrinth.com/plugin/grimac and put the jar in ${path.join(DIR, 'plugins')}`))
   writeProperties()
   await eula()
