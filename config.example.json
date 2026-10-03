@@ -1,0 +1,6 @@
+{
+  "profile": "pro",
+  "connection": { "host": "localhost", "port": 25565, "username": "Mimic", "auth": "offline", "version": "26.1" },
+  "targeting": { "auto": true, "owner": "YourName", "allies": [], "range": 24, "fov": 140 },
+  "loadout": { "autoArmor": true }
+}
