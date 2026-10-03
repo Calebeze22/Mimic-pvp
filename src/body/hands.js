@@ -1,8 +1,6 @@
 'use strict'
 
-const win = require('./win32')
-
-const VK_F8 = 0x77
+const win = require('./platform')
 const MOVE_KEYS = ['forward', 'back', 'left', 'right', 'jump', 'sprint', 'sneak']
 
 // Keyboard and mouse on the bot's Minecraft window. It never guesses which
@@ -21,17 +19,14 @@ class Hands {
     this.pinned = null // {hwnd, pid, title} of the bot's window
     this.paused = false
     this.held = false // arena teleports: hands off until re-synced
-    this._f8 = false
     this._wasActive = null
   }
 
-  get active () { return !!this.pinned && !this.paused && !this.held && win.foregroundHwnd() === this.pinned.hwnd }
+  get active () { return !!this.pinned && !this.paused && !this.held && win.focusedId() === this.pinned.id }
 
   // Called often (every few ms) from the body loop.
   update () {
-    const f8 = win.keyHeld(VK_F8)
-    if (f8 && !this._f8) this._onF8()
-    this._f8 = f8
+    if (win.takeF8()) this._onF8()
     const active = this.active
     if (active !== this._wasActive) {
       if (this._wasActive !== null) this.log(active ? 'bot window in front: playing' : `hands off (${!this.pinned ? 'no window picked' : this.paused ? 'paused' : this.held ? 'teleporting' : 'bot window not in front'})`)
@@ -47,11 +42,11 @@ class Hands {
 
   _onF8 () {
     if (!this.pinned) {
-      const w = win.foregroundMinecraft()
+      const w = win.pickWindow()
       if (!w) return this.log('F8: put the bot\'s Minecraft window in front first, then press F8')
       this.pinned = w
       this.paused = false
-      this.log(`playing in "${w.title}" (process ${w.pid}). F8 pauses.`)
+      this.log(`playing in "${w.title}" (process ${w.pid || '?'}). F8 pauses.`)
       if (this.onPin) this.onPin(w)
       return
     }

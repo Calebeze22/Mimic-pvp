@@ -93,7 +93,25 @@ function foregroundTitle () {
 
 function keyHeld (vk) { return (GetAsyncKeyState(vk) & 0x8000) !== 0 }
 
+const VK_F8 = 0x77
+let f8Down = false
+
 module.exports = {
+  init: () => timeBeginPeriod(1), // 1 ms timers, so mouse steps go out evenly
+  ready: true,
+  pickWindow () {
+    const w = foregroundMinecraft()
+    return w && { id: w.hwnd, pid: w.pid, title: w.title }
+  },
+  focusedId: foregroundHwnd,
+  takeF8 () {
+    const down = keyHeld(VK_F8)
+    const pressed = down && !f8Down
+    f8Down = down
+    return pressed
+  },
+  defaultMcDir: () => require('path').join(process.env.APPDATA || '', '.minecraft'),
+  stop () {},
   moveMouse: (dx, dy) => mouse(dx, dy, MOUSEEVENTF_MOVE),
   leftDown: () => mouse(0, 0, MOUSEEVENTF_LEFTDOWN),
   leftUp: () => mouse(0, 0, MOUSEEVENTF_LEFTUP),

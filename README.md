@@ -31,21 +31,52 @@ The server listens on localhost only and runs in offline mode, so the bot can jo
 
 ## Real-client mode: the bot plays a real Minecraft window
 
-Here the bot isn't a fake client at all. It plays a normal Minecraft window on a Windows PC, logged into its own account, and presses the keys and moves the mouse through Windows input (`SendInput`), just like a keyboard and mouse would. The game does all the movement, aiming and hitting, so everything the server sees comes from a real client.
+Here the bot isn't a fake client at all. It plays a normal Minecraft window, logged into its own account, by pressing keys and moving and clicking the mouse through the OS's input layer: `SendInput` on Windows, a virtual keyboard and mouse (uinput) on Linux, which works under Wayland and X11. The game does all the movement, aiming and hitting, so everything the server sees comes from a real client. Nothing in the game is modded.
 
-To know where people are, a spectator connection (`MimicEyes`) watches the arena from above. Nothing in the game is modded.
+To know where people are, the bot also connects a spectator (`MimicEyes`) that watches the arena from above. The arena gives it orders through that connection (teleport sync, start and end of rounds).
+
+**Server computer** (runs the arena):
 
 ```bash
-npm run arena:setup -- --lan                        # lets your other computer join
-npm run arena:play -- --owner YourName --client     # bot = whoever else joins first (or --client TheirName)
+npm run arena:setup -- --lan                      # lets other computers on your network join
+npm run arena:play -- --owner YourName --client   # the bot is whoever else joins first (or --client TheirName)
 ```
 
-1. On the Windows PC, start Minecraft 26.1.x with your second account, join `localhost`, click into the window and press **F8**. That hands this one window to the bot; it never touches any other window. F8 again pauses it, and switching to another window lets go of every key.
-2. On your other computer, join `<the PC's address>:25565` as `YourName` and type `!duel`.
+**Bot computer** (can be the same one, or another, e.g. a laptop):
 
-It reads the keys and mouse sensitivity from that game's own `options.txt`. Use Hold (not Toggle) for sprint and sneak, keep Raw Input on, and turn off Pause on Lost Focus (F3+P).
+1. Start Minecraft 26.1.x with your second account and join the arena.
+2. Start the bot: `node src/index.js --client --host <server address> --owner YourName [--profile pro]`.
+3. Click into the bot's Minecraft window and press **F8**. That hands that one window to the bot. F8 again pauses it.
 
-Before each round the arena teleports the bot facing a known direction, so the bot knows exactly where its camera points and then counts every mouse step it sends from there. If the game ever drops mouse input (a menu was open), it re-syncs from the server's view of its head.
+Then join as `YourName` and type `!duel`.
+
+On Windows, and on Linux under Hyprland or Sway, the bot only sends input while that exact window is in front, and lets go of every key when you switch away. On other Linux desktops it can't ask which window is in front, so F8 is the only switch: press it before you leave the game.
+
+It reads the keys and mouse sensitivity from that game's own `options.txt` (its `--gameDir`). Use Hold (not Toggle) for sprint and sneak, keep Raw Input on, and turn off Pause on Lost Focus (F3+P).
+
+Before each round the arena teleports the bot facing a known direction, so it knows exactly where its camera points and then counts every mouse step it sends. If the game ever drops mouse input (a menu was open), it re-syncs from the server's view of its head.
+
+### Laptop setup (Arch Linux)
+
+```bash
+sudo pacman -S --needed nodejs npm git python-evdev
+echo 'KERNEL=="uinput", GROUP="input", MODE="0660", OPTIONS+="static_node=uinput"' | sudo tee /etc/udev/rules.d/99-uinput.rules
+echo uinput | sudo tee /etc/modules-load.d/uinput.conf
+sudo usermod -aG input $USER          # then log out and back in
+sudo modprobe uinput && sudo udevadm control --reload && sudo udevadm trigger
+git clone -b real-client https://github.com/Calebeze22/mimic-pvp && cd mimic-pvp && npm install
+```
+
+Being in the `input` group lets your user read every keyboard (that's how the bot sees F8). Remove yourself from it when you're done with the bot.
+
+Pointer acceleration must not touch the bot's mouse. On Hyprland, add this to `hyprland.conf`:
+
+```
+device {
+    name = mimic-virtual-mouse
+    accel_profile = flat
+}
+```
 
 ## Run it on another server
 
@@ -118,7 +149,7 @@ src/human/keys.js       key timing, sprint rules, player_input packet
 src/combat/brain.js     targeting, movement, crits, sprint hits, spacing, duels
 src/combat/items.js     weapon cooldowns and damage, armor ranking
 src/combat/geometry.js  hitboxes, ray tests, angles
-src/body/               real-client mode: Windows input, options.txt keys, the stand-in "bot"
+src/body/               real-client mode: Windows/Linux input, options.txt keys, the stand-in "bot"
 arena/setup.js          downloads Paper + Grim, writes server config
 arena/run.js            runs server + bot, !duel rounds, Grim flag report
 arena/rcon.js           RCON client

@@ -6,7 +6,7 @@ const { wrapAngle } = require('../combat/geometry')
 const { DEG, rotationStep } = require('../human/aim')
 const { Hands } = require('./hands')
 const { readOptions } = require('./options')
-const win = require('./win32')
+const win = require('./platform')
 
 const TICK_MS = 50
 const MOUSE_MS = 8 // ~125 Hz, a normal mouse polling rate
@@ -196,6 +196,7 @@ class Body extends EventEmitter {
     for (const t of this._timers) clearInterval(t)
     this._timers = []
     this.hands.releaseAll()
+    win.stop()
   }
 
   _findMe () {
@@ -281,4 +282,4 @@ class Body extends EventEmitter {
   }
 }
 
-module.exports = { Body, MouseAim, fromMc, focused: win.minecraftFocused }
+module.exports = { Body, MouseAim, fromMc }

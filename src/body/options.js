@@ -38,7 +38,8 @@ function scancode (value) {
 }
 
 function defaultDir () {
-  return path.join(process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming'), '.minecraft')
+  if (process.platform === 'win32') return path.join(process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming'), '.minecraft')
+  return path.join(os.homedir(), '.minecraft')
 }
 
 function readOptions (dir = defaultDir()) {
