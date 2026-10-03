@@ -58,7 +58,7 @@ final class Brain {
 	private double idleYaw, idlePitch;
 	private int idleUntil;
 	// camera bookkeeping, to notice rotations we didn't cause (teleports)
-	private double prevYaw, prevPitch, expYaw, expPitch;
+	private double expYaw, expPitch;
 	private boolean haveCam;
 
 	int hits, crits, sprintHits, misses, earlyHits;
@@ -105,6 +105,7 @@ final class Brain {
 		boolean can = enabled && mc.screen == null && mc.isWindowActive() && me.isAlive() && !me.isSpectator();
 		if (!can) {
 			if (active) { keys.releaseAll(); click = null; active = false; }
+			owedX = owedY = paidX = paidY = 0;
 			keys.update();
 			haveCam = false;
 			return;
@@ -136,28 +137,49 @@ final class Brain {
 	private void syncCamera(LocalPlayer me) {
 		double y = me.getYRot();
 		double x = me.getXRot();
-		boolean outside = !haveCam
-			|| (Math.abs(Hand.wrap(y - prevYaw)) > 1 && Math.abs(Hand.wrap(y - expYaw)) > 1)
-			|| (Math.abs(x - prevPitch) > 1 && Math.abs(x - expPitch) > 1);
+		// Where the camera should be: everything we sent, minus what the game hasn't applied yet.
+		MouseHandlerAccessor mouse = (MouseHandlerAccessor) mc.mouseHandler;
+		double step = Hand.degreesPerCount(mc.options.sensitivity().get());
+		double nowYaw = expYaw - (mouse.mimic$getAccumulatedDX() + owedX - paidX) * step;
+		double nowPitch = Rand.clamp(expPitch - (mouse.mimic$getAccumulatedDY() + owedY - paidY) * step, -90, 90);
+		boolean outside = !haveCam || Math.abs(Hand.wrap(y - nowYaw)) > 1 || Math.abs(x - nowPitch) > 1;
 		if (outside) hand.reset(y, x);
 		haveCam = true;
 	}
 
+	// This tick's mouse counts, handed to the game a little each frame over
+	// the tick (a real mouse moves between frames, not 20 times a second).
+	private long owedX, owedY, paidX, paidY;
+	private long tickStartNanos;
+
 	private void moveMouse(LocalPlayer me) {
 		MouseHandlerAccessor mouse = (MouseHandlerAccessor) mc.mouseHandler;
+		pay(mouse, 1); // anything from last tick not handed over yet
 		double step = Hand.degreesPerCount(mc.options.sensitivity().get());
-		double pendX = mouse.mimic$getAccumulatedDX();
-		double pendY = mouse.mimic$getAccumulatedDY();
-		double camYaw = me.getYRot() + pendX * step;
-		double camPitch = me.getXRot() + pendY * step;
-		long cx = Math.round(Hand.wrap(hand.yaw - camYaw) / step);
-		long cy = Math.round((Rand.clamp(hand.pitch, -90, 90) - camPitch) / step);
-		mouse.mimic$setAccumulatedDX(pendX + cx);
-		mouse.mimic$setAccumulatedDY(pendY + cy);
-		prevYaw = me.getYRot();
-		prevPitch = me.getXRot();
-		expYaw = camYaw + cx * step;
-		expPitch = Rand.clamp(camPitch + cy * step, -90, 90);
+		double camYaw = me.getYRot() + mouse.mimic$getAccumulatedDX() * step;
+		double camPitch = me.getXRot() + mouse.mimic$getAccumulatedDY() * step;
+		owedX = Math.round(Hand.wrap(hand.yaw - camYaw) / step);
+		owedY = Math.round((Rand.clamp(hand.pitch, -90, 90) - camPitch) / step);
+		paidX = paidY = 0;
+		tickStartNanos = System.nanoTime();
+		expYaw = camYaw + owedX * step;
+		expPitch = Rand.clamp(camPitch + owedY * step, -90, 90);
+	}
+
+	/** Called every frame just before the game applies mouse movement. */
+	void onFrame(MouseHandlerAccessor mouse) {
+		if (!active) return;
+		pay(mouse, Rand.clamp((System.nanoTime() - tickStartNanos) / 50e6, 0, 1));
+	}
+
+	private void pay(MouseHandlerAccessor mouse, double fraction) {
+		long x = Math.round(owedX * fraction) - paidX;
+		long y = Math.round(owedY * fraction) - paidY;
+		if (x == 0 && y == 0) return;
+		mouse.mimic$setAccumulatedDX(mouse.mimic$getAccumulatedDX() + x);
+		mouse.mimic$setAccumulatedDY(mouse.mimic$getAccumulatedDY() + y);
+		paidX += x;
+		paidY += y;
 	}
 
 	private void watchSwingsAndHurt(LocalPlayer me, List<Player> players) {

@@ -68,6 +68,10 @@ public class MimicClient implements ClientModInitializer {
 		}
 	}
 
+	public static void onFrame(net.minecraft.client.MouseHandler mouse) {
+		if (brain != null) brain.onFrame((mimic.mixin.MouseHandlerAccessor) mouse);
+	}
+
 	private static void say(String text) {
 		Minecraft.getInstance().gui.getChat().addClientSystemMessage(Component.literal("[Mimic] " + text));
 	}
